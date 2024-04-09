@@ -181,7 +181,43 @@ impl ModbusRegisterData {
                     return 1;
                 }
             }
-            _ => todo!(),
+            DataType::Uint64 => {
+                if let Ok(value) = parse_int::parse::<u64>(&self.data_value) {
+                    let tmp = vec![
+                        (value & 0xFFFF) as u16,
+                        ((value >> 16) & 0xFFFF) as u16,
+                        ((value >> 32) & 0xFFFF) as u16,
+                        ((value >> 48) & 0xFFFF) as u16,
+                    ];
+                    registers.extend(tmp);
+                    return 4;
+                }
+            }
+            DataType::Int16 => {
+                if let Ok(value) = parse_int::parse::<i16>(&self.data_value) {
+                    registers.push(value as u16);
+                    return 1;
+                }
+            }
+            DataType::Int32 => {
+                if let Ok(value) = parse_int::parse::<i32>(&self.data_value) {
+                    let tmp = vec![(value & 0xFFFF) as u16, (value >> 16) as u16];
+                    registers.extend(tmp);
+                    return 2;
+                }
+            }
+            DataType::Int64 => {
+                if let Ok(value) = parse_int::parse::<i64>(&self.data_value) {
+                    let tmp = vec![
+                        (value & 0xFFFF) as u16,
+                        ((value >> 16) & 0xFFFF) as u16,
+                        ((value >> 32) & 0xFFFF) as u16,
+                        ((value >> 48) & 0xFFFF) as u16,
+                    ];
+                    registers.extend(tmp);
+                    return 4;
+                }
+            }
         }
         return 0;
     }
@@ -189,7 +225,7 @@ impl ModbusRegisterData {
     pub fn read_from_u16(
         &mut self,
         it: &mut std::iter::Peekable<std::slice::Iter<u16>>,
-        e: EndiannessType
+        e: EndiannessType,
     ) -> usize {
         match &self.data_type {
             DataType::Float32 => {
@@ -236,7 +272,58 @@ impl ModbusRegisterData {
                     return 0;
                 }
             }
-            _ => todo!(),
+            DataType::Uint64 => {
+                let mut tmp = [0_u16; 4];
+                for idx in 0..4 {
+                    if let Some(data) = it.next() {
+                        tmp[idx] = *data;
+                    } else {
+                        return 0;
+                    }
+                }
+                self.data_value = (tmp[0] as u64
+                    | ((tmp[1] as u64) << 16)
+                    | ((tmp[2] as u64) << 32)
+                    | ((tmp[3] as u64) << 48))
+                    .to_string();
+                return 4;
+            }
+            DataType::Int16 => {
+                if let Some(data) = it.next() {
+                    self.data_value = data.to_string();
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+            DataType::Int32 => {
+                let mut tmp = [0_u16; 2];
+                for idx in 0..2 {
+                    if let Some(data) = it.next() {
+                        tmp[idx] = *data;
+                    } else {
+                        return 0;
+                    }
+                }
+                self.data_value = (tmp[0] as i32 | ((tmp[1] as i32) << 16)).to_string();
+                return 2;
+            }
+            DataType::Int64 => {
+                let mut tmp = [0_u16; 4];
+                for idx in 0..4 {
+                    if let Some(data) = it.next() {
+                        tmp[idx] = *data;
+                    } else {
+                        return 0;
+                    }
+                }
+                self.data_value = (tmp[0] as i64
+                    | ((tmp[1] as i64) << 16)
+                    | ((tmp[2] as i64) << 32)
+                    | ((tmp[3] as i64) << 48))
+                    .to_string();
+                return 4;
+            }
         }
     }
 }
